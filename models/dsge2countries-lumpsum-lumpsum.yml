@@ -1,0 +1,99 @@
+# Author: Gregor Boehl [mail@gregorboehl.com]
+---
+
+name: "nk"
+description: "2 countries in monetary union with different fiscal policies, lump-sum in both countries"
+variables: [d,dstar, c, cstar, piH, piF, pi, pistar, y, ystar, q, pH, pF, rn, gH, gF, ny, nystar, L, Lstar, w, wstar, sH, sF, kbar, kbarstar, k, kstar, i, istar, u, ustar, rk, rkstar]
+parameters: [ beta,rho_beta,sigma, alpha, nu, aa, eta, theta, delta, sigma_a, kappa_i, nn, phiH, phiF, phiHstar, phiFstar, phiPi, phiY, rhoii, phiG, phi_c, phi_i, rho_g, corrG, Ibar, Gbar, Cbar, kappa, psi_v, zeta, sigma_c, sigma_l, psi_c, psi_k]
+shocks: [e_gH,e_gF,e_rn, e_beta]
+
+definitions: |
+    from jax.numpy import log, maximum
+
+equations:
+
+    ~ c = cPrime + sigma_c*sigma_l**(-1)*(LPrime - L) + sigma_c*(rn-piPrime) # Home Consumption Euler Equation     
+    ~ c-cstar-sigma_c*sigma_l**(-1)*(L-Lstar)-sigma_c*q=0   # Backus-Smith Condition    
+    ~ piH = beta*piHPrime + kappa*zeta*sigma**(-1)*psi_c*c+kappa*zeta*psi_v*y-kappa*zeta*pH+kappa*zeta*psi_k*rk   # Home Phillips Curve
+    ~ piF = beta*piFPrime + kappa*zeta*sigma**(-1)*psi_c*cstar+kappa*zeta*psi_v*ystar+kappa*zeta*psi_c*q-pF*kappa*zeta+kappa*zeta*psi_k*rkstar # Foreign Phillips Curve
+    ~ pi = phiH*piH + phiF*piF               # Home Inflation    
+    ~ pistar = phiHstar*piH + phiFstar*piF  # Foreign Inflation  
+    ~ y = Cbar*phiH*c + Cbar*(1-nn)/nn*phiHstar*cstar + eta*(Cbar+Ibar)*(1-nn)/nn*phiHstar*q - eta*(Cbar+Ibar)*(phiH + (1-nn)/nn*phiHstar)*pH + gH + Ibar*phiH*i + Ibar*(1-nn)/nn*phiHstar*istar   # Home Resource Constraint
+    ~ ystar = Cbar*nn/(1-nn)*phiF*c + Cbar*phiFstar*cstar + eta*(Cbar+Ibar)*phiFstar*q - eta*(Cbar+Ibar)*(nn/(1-nn)*phiF+phiFstar)*pF + gF + Ibar*nn/(1-nn)*phiF*i + Ibar*phiFstar*istar           # Foreign Resource Constraint 
+    ~ pH-piH = pHLag - pi    # Home Relative Price      
+    ~ q = phiHstar*pH + phiFstar*pF  # Real Exchange Rate    
+    ~ rn = rhoii*rnLag + (1-rhoii)*nn*phiPi*pi + (1-rhoii)*(1-nn)*phiPi*pistar + (1-rhoii)*nn*phiY*y + (1-rhoii)*(1-nn)*phiY*ystar + (1-rhoii)*nn*phiG*gH + (1-rhoii)*(1-nn)*phiG*gF+e_rn # Taylor Rule
+    ~ gH = rho_g*gHLag+e_gH # level of government spending H
+    ~ gF = rho_g*gFLag+e_gF # level of government spending F
+    ~ ny = y+piH            # home nominal outputs      
+    ~ nystar = ystar+piF     # Foreign nominal outputs    
+    ~ y=aa*L+(1-aa)*k       # Home production functions     
+    ~ ystar=aa*Lstar+(1-aa)*kstar # Foreign production functions     
+    ~ w=L*nu**(-1)+sigma_c**(-1)*c-pH  #(home real wage ) in teoria dovrebbe essere *s ####################################
+    ~ wstar=Lstar*nu**(-1)+sigma_c**(-1)*cstar+q-pF #(foreign real wage )
+    ~ sH=sigma**(-1)*psi_c*c+psi_v*y+psi_k*rk-pH  # Home marginal cost
+    ~ sF=sigma**(-1)*psi_c*cstar+psi_v*ystar+psi_k*rkstar-pF # Foreign marginal cost
+    ~ kbarPrime -  i*delta = (1-delta)*kbar  # Home Capital Accumulation               
+    ~ kbarstarPrime-istar*delta = (1-delta)*kbarstar # Foreign Capital Accumulation    
+    ~ k =u+kbar                 #home capital input 
+    ~ kstar = ustar+kbarstar     #foreign capital input
+    ~ d-kappa_i*(1+beta)*i+kappa_i*iLag+beta*kappa_i*iPrime+sigma_c**(-1)*c-sigma_l**(-1)*L=0
+    ~ dstar-kappa_i*(1+beta)*istar+kappa_i*istarLag+beta*kappa_i*istarPrime+sigma_c**(-1)*cstar-sigma_l**(-1)*Lstar=0
+    ~ -d+beta*(1-delta)*dPrime+(1-beta*(1-delta))*rkPrime-sigma_c**(-1)*(1-beta*(1-delta))*cPrime+sigma_l**(-1)*(1-beta*(1-delta))*LPrime=0
+    ~ -dstar+beta*(1-delta)*dstarPrime+(1-beta*(1-delta))*rkstarPrime+(1-beta*(1-delta))*piPrime-(1-beta*(1-delta))*q-(1-beta*(1-delta))*pistarPrime-sigma_c**(-1)*(1-beta*(1-delta))*cstarPrime+sigma_l*(1-beta*(1-delta))*LstarPrime=0
+    ~ rk= (1+nu**(-1))*L-k                      #home capital demand
+    ~ rkstar= (1+nu**(-1))*Lstar-kstar+q       #foreign capital demand
+    ~ sigma_a*u=rk                          
+    ~ sigma_a*ustar=rkstar-q                
+    ~  pF = -(phiH/phiF)*pH  #ppi
+
+steady_state:
+    fixed_values:
+        # parameters
+        sigma: 1 # Intertemporal elasticity of substitution
+        alpha: 0.75 # Calvo parameter
+        nu: 1 # Frish elasticity of labor suppy
+        aa: 0.67 # Curvature of production function
+        eta: 2 # Elasticity of substitution between home and foreign goods
+        theta: 7 # Elasticity of substitution between varieties
+        delta: 0.025 # Rate of depreciation of capital
+        sigma_a: 0.01 # Elasticity of capital utilization cost
+        kappa_i: 2.5 # investment adjustment cost parameter
+        nn: 0.5 # Size of home region
+        phiH: 0.69 # Weight of home goods in home consumption basket
+        phiF: 0.31 # Weight of foreign goods in home consumption basket
+        phiHstar: 0.0344444444444445 # Weight of home goods in foreign consumption basket
+        phiFstar: 0.965555555555556 # Weight of foreign goods in foreign consumption basket
+        phiPi: 1.5 # Inflation response in Taylor Rule
+        phiY: 0.5 # Output response in Taylor Rule
+        rhoii: 0.8 # Lagged dependence in Taylor Rule
+        phiG: 0.0 # Direct response of monetary policy to fiscal shock
+        phi_c: 1 # Consumption elasticity of money demand
+        phi_i: 0 # Interest elasticity of money demand
+        rho_g: 0.933 # Persistence of government spending shock
+        corrG: 0.999 # Correlation of home and foreign gov spending shocks
+        Ibar: 0.201459403905447 # Steady state investment-output ratio
+        Gbar: 0.2 # Steady state government spending-output ratio
+        Cbar: 0.598540596094553 # Steady state consumption-output ratio
+        kappa: 0.0858333333333334
+        psi_v: 0.503759398496241
+        zeta: 0.220930232558140
+        sigma_c: 1.92210964058220
+        sigma_l: 2.003289689112460
+        psi_c: 0.503759398496241
+        psi_k: 0.496240601503759
+        rho_beta: 0.9
+        beta: 0.995
+
+
+
+
+    # steady state values
+
+
+    init_guesses:
+        e_gH: 0
+        e_gF: 0
+
+   # the default initial guess for values not specified here is always 0.95
+
